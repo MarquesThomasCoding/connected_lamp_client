@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Lampe</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2rem; }
+    label, input, button { margin: 0.5rem 0; display: block; }
+    #status { margin-top: 1rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Contrôle de votre Lampe</h1>
+
+  <label for="lampeId">Identifiant de la lampe :</label>
+  <input type="text" id="lampeId" placeholder="ex: LAMPE123" />
+  <button id="saveId">Enregistrer l'identifiant</button>
+
+  <hr>
+  <button onclick="envoyerCommande({ action: 'on' })">Allumer</button>
+  <button onclick="envoyerCommande({ action: 'off' })">Éteindre</button>
+
+  <label for="ville">Changer de ville :</label>
+  <input type="text" id="ville" placeholder="ex: Paris" />
+  <button onclick="changerVille()">Envoyer</button>
+
+  <div id="status">État de la lampe : <span id="etat">Inconnu</span></div>
+
+  <script>
+    const lampeInput = document.getElementById('lampeId');
+    const savedId = localStorage.getItem('lampeId');
+    const etatSpan = document.getElementById('etat');
+    let socket;
+
+    if (savedId) lampeInput.value = savedId;
+
+    document.getElementById('saveId').onclick = () => {
+      const id = lampeInput.value;
+      localStorage.setItem('lampeId', id);
+      initialiserWebSocket(id);
+      alert("ID enregistré !");
+    };
+
+    function getLampeId() {
+      const id = localStorage.getItem('lampeId');
+      if (!id) alert("Veuillez d'abord enregistrer l'ID de la lampe.");
+      return id;
+    }
+
+    function envoyerCommande(cmd) {
+      const id = getLampeId();
+      if (!id) return;
+
+      fetch(`http://192.168.200.169:8765/lampe/${id}/commande`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cmd)
+      })
+      .then(res => res.ok ? console.log("Commande envoyée") : alert("Erreur"))
+      .catch(() => alert("Erreur de connexion"));
+    }
+
+    function changerVille() {
+      const ville = document.getElementById('ville').value;
+      envoyerCommande({ action: 'ville', value: ville });
+    }    function initialiserWebSocket(id) {
+      if (socket) socket.close();
+      socket = new WebSocket(`ws://192.168.200.169:8765`);
+
+      socket.onopen = () => {
+        socket.send(JSON.stringify({ type: "monitor", id: id }));
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.status) {
+            etatSpan.textContent = data.status;
+          }
+        } catch (e) {
+          console.error("Message non valide:", event.data);
+        }
+      };
+
+      socket.onclose = () => {
+        etatSpan.textContent = "Déconnecté";
+      };
+    }
+
+    if (savedId) {
+      initialiserWebSocket(savedId);
+    }
+  </script>
+</body>
+</html>
