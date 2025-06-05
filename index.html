@@ -63,7 +63,9 @@
     function changerVille() {
       const ville = document.getElementById('ville').value;
       envoyerCommande({ action: 'ville', value: ville });
-    }    function initialiserWebSocket(id) {
+    }    
+    
+    function initialiserWebSocket(id) {
       if (socket) socket.close();
       socket = new WebSocket(`ws://192.168.200.169:8765`);
 
